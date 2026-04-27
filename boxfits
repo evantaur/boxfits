@@ -11,7 +11,7 @@
 # │ --                                                                        │
 # │ Draw boxes like this one right here around comments or content.           │
 # └───────────────────────────────────────────────────────────────────────────┘
-VERSION="0.0.0~alpha1"
+VERSION="0.0.0~alpha2"
 
 set -euo pipefail
 # ┌───────────────────────────────────────────────────────────────────────────┐
@@ -26,17 +26,41 @@ style_double=('╔' '═' '╗' '║' '║' '╚' '═' '╝')
 style_normal=('┌' '─' '┐' '│' '│' '└' '─' '┘')
 style_rounded=('╭' '─' '╮' '│' '│' '╰' '─' '╯')
 style_star=('*' '*' '*' '*' '*' '*' '*' '*' )
-styles=('comment' 'dashed' 'dashed_rounded'
+STYLES=('comment' 'dashed' 'dashed_rounded'
         'dotted' 'dotted_light' 'double'
         'normal' 'rounded' 'star')
+
+show_styles() {
+  for i in ${STYLES[@]}; do
+    $0 -s "$i" -n -- "Boxfits     style: ${i}"
+  done
+  exit 0
+}
 # ┌───────────────────────────────────────────────────────────────────────────┐
 # │ Help                                                                      │
 # └───────────────────────────────────────────────────────────────────────────┘
 help() {
+  cat "$0" | head -n 13 | tail -n 12 | tr -d "#"
+  #printf "%s -- %s\n\nHelp" "BOXFITS" $VERSION | \
+  #  $0 --style double --no-comments --
   [[ ${1:-} != "" ]] && echo -e "  Error: ${1}\n"
   cat << EOF
-  Usage:
-  $0 <text>
+  Basic Usage:
+  $(basename $0) -- <text>
+
+  flags:
+  -n|--no-comments  :  Hide comments
+  -h|--help         :  This help screen
+  -s|--style        :  Style to use <style>
+  -c|--comment      :  Comment to use, default #
+  -w|width          :  Width <int>, default 80
+  -v|--version      :  Show version
+  --|--text         :  Input text
+
+  -S|--show-styles  :  preview styles
+
+  styles:
+  ${STYLES[@]}
 EOF
 exit 1
 }
@@ -52,29 +76,35 @@ INPUT_TEXT=""
 
 while (($#)); do
   case "$1" in
-    --no-comments)
+    -n|--no-comments)
       ADD_COMMENT=false
       shift
       ;;
     -h|--help)
       help
       ;;
-    --style)
+    -s|--style)
       [[ $# -ge 2 ]] || help "--style needs a value"
       STYLE="$2"
       shift 2
       ;;
-    --comment)
+    -c|--comment)
       [[ $# -ge 2 ]] || help "--comment needs a value"
       COMMENT="$2"
       shift 2
       ;;
-    --width)
+    -w|--width)
       [[ $# -ge 2 ]] || help "--comment needs a value"
       WIDTH="$2"
       shift 2
       ;;
-      
+    -v|--version)
+      printf "%s" "$VERSION"
+      exit 0
+      ;;
+    -S|--show-styles)
+      show_styles
+      ;;
     --|--text) # end of flags
       shift
       break
