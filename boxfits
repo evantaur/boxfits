@@ -1,0 +1,150 @@
+#!/usr/bin/env bash
+# ┌───────────────────────────────────────────────────────────────────────────┐
+# │  ██████                      ████ ██   ██                                 │
+# │ ░█░░░░██                    ░██░ ░░   ░██                                 │
+# │ ░█   ░██   ██████  ██   ██ ██████ ██ ██████  ██████                       │
+# │ ░██████   ██░░░░██░░██ ██ ░░░██░ ░██░░░██░  ██░░░░                        │
+# │ ░█░░░░ ██░██   ░██ ░░███    ░██  ░██  ░██  ░░█████                        │
+# │ ░█    ░██░██   ░██  ██░██   ░██  ░██  ░██   ░░░░░██                       │
+# │ ░███████ ░░██████  ██ ░░██  ░██  ░██  ░░██  ██████                        │
+# │ ░░░░░░░   ░░░░░░  ░░   ░░   ░░   ░░    ░░  ░░░░░░                         │
+# │ --                                                                        │
+# │ Draw boxes like this one right here around comments or content.           │
+# └───────────────────────────────────────────────────────────────────────────┘
+VERSION="0.0.0~alpha1"
+
+set -euo pipefail
+# ┌───────────────────────────────────────────────────────────────────────────┐
+# │ Styles                                                                    │
+# └───────────────────────────────────────────────────────────────────────────┘
+style_comment=('#' '#' '#' '#' '#' '#' '#' '#')
+style_dashed=('╷' '╴' '╷' '|' '|' '╵' '╶' '╵')
+style_dashed_rounded=('╭' '╴' '╮' '|' '|' '╰' '╶' '╯')
+style_dotted=('.' "'" '.' ':' ':' "'" "." "'")
+style_dotted_light=('┌' '┄' '┐' '┊' '┊' '└' '┄' '┘')
+style_double=('╔' '═' '╗' '║' '║' '╚' '═' '╝')
+style_normal=('┌' '─' '┐' '│' '│' '└' '─' '┘')
+style_rounded=('╭' '─' '╮' '│' '│' '╰' '─' '╯')
+style_star=('*' '*' '*' '*' '*' '*' '*' '*' )
+styles=('comment' 'dashed' 'dashed_rounded'
+        'dotted' 'dotted_light' 'double'
+        'normal' 'rounded' 'star')
+# ┌───────────────────────────────────────────────────────────────────────────┐
+# │ Help                                                                      │
+# └───────────────────────────────────────────────────────────────────────────┘
+help() {
+  [[ ${1:-} != "" ]] && echo -e "  Error: ${1}\n"
+  cat << EOF
+  Usage:
+  $0 <text>
+EOF
+exit 1
+}
+
+# ┌───────────────────────────────────────────────────────────────────────────┐
+# │ Parse Args                                                                │
+# └───────────────────────────────────────────────────────────────────────────┘
+WIDTH=80
+COMMENT="#"
+STYLE=normal
+ADD_COMMENT=true
+INPUT_TEXT=""
+
+while (($#)); do
+  case "$1" in
+    --no-comments)
+      ADD_COMMENT=false
+      shift
+      ;;
+    -h|--help)
+      help
+      ;;
+    --style)
+      [[ $# -ge 2 ]] || help "--style needs a value"
+      STYLE="$2"
+      shift 2
+      ;;
+    --comment)
+      [[ $# -ge 2 ]] || help "--comment needs a value"
+      COMMENT="$2"
+      shift 2
+      ;;
+    --width)
+      [[ $# -ge 2 ]] || help "--comment needs a value"
+      WIDTH="$2"
+      shift 2
+      ;;
+      
+    --|--text) # end of flags
+      shift
+      break
+      ;;
+    *)
+      help "Unknown option: $1"
+      ;;
+  esac
+done
+
+# ┌───────────────────────────────────────────────────────────────────────────┐
+# │ Validate                                                                  │
+# └───────────────────────────────────────────────────────────────────────────┘
+style_name="style_${STYLE}"
+if [[ ! -v "$style_name" ]]; then
+  help "no such style \"$STYLE\""
+fi
+declare -n BORDERS="$style_name"
+
+
+if [[ $# -ge 1 ]]; then
+  INPUT_TEXT="$@"
+else
+  if [[ ! -t 0 ]]; then
+    INPUT_TEXT=$(cat)
+  else
+    help "text can't be empty"
+  fi
+fi
+
+# ┌───────────────────────────────────────────────────────────────────────────┐
+# │ Draw lines                                                                │
+# └───────────────────────────────────────────────────────────────────────────┘
+draw_line() {
+  if [[ "$1" == "top" ]]; then
+    A="${COMMENT}${BORDERS[0]}"
+    B="${BORDERS[1]}"
+    C="${BORDERS[2]}"
+  else
+    A="${COMMENT}${BORDERS[5]}"
+    B="${BORDERS[6]}"
+    C="${BORDERS[7]}"
+  fi
+  printf "%b" "$A"
+  for ((i=0; i<BOX_WIDTH; i++)); do
+    printf "%b" "$B"
+  done
+  printf "%b" "$C\n"
+
+}
+
+if [[ $ADD_COMMENT == false ]] || [[ "$STYLE" == "comment" ]]; then
+  COMMENT=""
+  BOX_WIDTH=$(($WIDTH-3))
+else
+  BOX_WIDTH=$(($WIDTH-4-${#COMMENT}))
+  COMMENT="${COMMENT} "
+fi
+
+TEXT_WIDTH=$((BOX_WIDTH-2))
+
+draw_line top
+readarray -t FOLDED <<< "$(printf "%s" "$INPUT_TEXT" | \
+                           fmt -s --width $TEXT_WIDTH)"
+printf "${COMMENT}${BORDERS[3]} %-${TEXT_WIDTH}s ${BORDERS[4]}\n" \
+       "${FOLDED[@]}"
+
+# #Centered
+# for i in "${FOLDED[@]}"; do
+#     printf "${COMMENT}${PILAR} %*s${PILAR}\n" $(( (${#i} + TEXT_WIDTH) / 2)) "$i"
+# done
+
+draw_line bottom
